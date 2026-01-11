@@ -1,0 +1,44 @@
+version: '3.9'
+
+services:
+  samba:
+    image: ghcr.io/dperson/samba:latest
+    restart: unless-stopped
+    ports:
+      - "139:139"
+      - "445:445"
+    environment:
+      # Use configuration file for shares and users
+      - CONFIG_FILE=/config/shares.conf
+      # Optional: Set timezone
+      - TZ=UTC
+      # Optional: Set custom UID/GID
+      - USERID=1000
+      - GROUPID=1000
+    volumes:
+      # Mount your data directories
+      - ./data:/data
+      # Mount the configuration file (read-only)
+      - ./shares.conf:/config/shares.conf:ro
+    tmpfs:
+      # Run state in tmpfs for better security
+      - /run/samba
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - FOWNER
+      - SETGID
+      - SETUID
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 512M
+        reservations:
+          cpus: '0.5'
+          memory: 128M

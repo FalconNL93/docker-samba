@@ -1,0 +1,117 @@
+[global]
+   workgroup = WORKGROUP
+   server string = Samba Server
+   server role = standalone server
+
+   # Logging (container-friendly)
+   log file = /dev/stdout
+   logging = syslog@1 /dev/stdout
+   max log size = 0
+   log level = 1
+
+   # Disable printing
+   load printers = no
+   printing = bsd
+   printcap name = /dev/null
+   disable spoolss = yes
+   rpc_server:spoolss = disabled
+
+   # Disable NetBIOS (SMB over 445 only)
+   disable netbios = yes
+   smb ports = 445
+
+   # Security - Disable guest access by default
+   map to guest = never
+   guest account = nobody
+   restrict anonymous = 2
+   null passwords = no
+   obey pam restrictions = yes
+
+   # Password settings
+   unix password sync = no
+   pam password change = yes
+
+   # File/Directory permissions
+   create mask = 0664
+   force create mode = 0664
+   directory mask = 0775
+   force directory mode = 0775
+
+   # NOTE:
+   # If you want appliance-style "everything maps to one user", uncomment these.
+   # For multi-user SMB (recommended), keep them commented out.
+   # force user = smbuser
+   # force group = smb
+
+   # Case sensitivity
+   preserve case = yes
+   short preserve case = yes
+   default case = lower
+
+   # Performance
+   strict locking = no
+   aio read size = 0
+   aio write size = 0
+   use sendfile = yes
+   min receivefile size = 16384
+   deadtime = 15
+   getwd cache = yes
+   keepalive = 30
+
+   # Security - SMB3 only
+   client ipc max protocol = SMB3
+   client ipc min protocol = SMB3
+   client max protocol = SMB3
+   client min protocol = SMB3
+   server max protocol = SMB3
+   server min protocol = SMB3
+
+   # Signing + Encryption (modern baseline)
+   server signing = mandatory
+   client signing = mandatory
+   smb signing = mandatory
+   server smb encrypt = required
+   smb encrypt = required
+
+   # Disable legacy/insecure auth
+   lanman auth = no
+   ntlm auth = disabled
+   raw NTLMv2 auth = no
+
+   # Symlinks (restricted for security)
+   follow symlinks = no
+   wide links = no
+   unix extensions = no
+
+   # Disable DFS to prevent "Hostname is not ours" errors
+   host msdfs = no
+
+   # VFS modules
+   vfs objects = catia fruit recycle streams_xattr acl_xattr
+
+   # Recycle bin
+   recycle:keeptree = yes
+   recycle:maxsize = 0
+   recycle:repository = .deleted
+   recycle:versions = yes
+
+   # macOS / Time Machine
+   fruit:delete_empty_adfiles = yes
+   fruit:time machine = yes
+   fruit:advertise_fullsync = true
+   fruit:veto_appledouble = no
+   fruit:wipe_intentionally_left_blank_rfork = yes
+   fruit:metadata = stream
+   fruit:model = MacSamba
+   fruit:posix_rename = yes
+   fruit:zero_file_id = yes
+   fruit:nfs_aces = no
+   fruit:copyfile = no
+
+   # Audit logging (optional - uncomment to enable)
+   # vfs objects = full_audit catia fruit recycle streams_xattr acl_xattr
+   # full_audit:prefix = %u|%I|%m|%S
+   # full_audit:success = mkdir rmdir read pread write pwrite rename unlink
+   # full_audit:failure = connect
+   # full_audit:facility = local7
+   # full_audit:priority = notice

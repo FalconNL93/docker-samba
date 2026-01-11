@@ -9,10 +9,10 @@ services:
       PUID: 1000
       PGID: 1000
     ports:
-      - "10137:137/udp"
-      - "10138:138/udp"
-      - "10139:139/tcp"
-      - "10445:445/tcp"
+      - "137:137/udp"
+      - "138:138/udp"
+      - "139:139/tcp"
+      - "445:445/tcp"
     read_only: true
     tmpfs:
       - /tmp

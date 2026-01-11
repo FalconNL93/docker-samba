@@ -10,6 +10,27 @@ Since 1992, Samba has provided secure, stable and fast file and print services
 for all clients using the SMB/CIFS protocol, such as all versions of DOS and
 Windows, OS/2, Linux and many others.
 
+# Repository Structure
+
+```
+docker-samba/
+├── container/              # Files included in the container image
+│   ├── samba.sh           # Entrypoint script
+│   ├── parse-config.sh    # YAML configuration parser
+│   ├── parse-toml-config.sh  # TOML configuration parser
+│   ├── smb.conf.template  # Samba configuration template
+│   └── _etc_avahi_services_samba.service
+├── Dockerfile             # Container image definition
+├── .dockerignore          # Docker build exclusions
+├── docker-compose.yml     # Production compose configuration
+├── docker-compose.override.yml  # Local testing overrides
+├── docker-compose.config-example.yml  # Config file example
+├── shares.conf.example    # Share configuration (YAML)
+├── shares.conf.toml.example  # Share configuration (TOML)
+├── SECURITY.md           # Security documentation
+└── README.md             # This file
+```
+
 # How to use this image
 
 By default there are no shares configured, additional ones can be added.
@@ -101,6 +122,98 @@ container configured to use the hosts network stack.
 
 **NOTE3**: optionally supports additional variables starting with the same name,
 IE `SHARE` also will work for `SHARE2`, `SHARE3`... `SHAREx`, etc.
+
+## Configuration File
+
+For easier management of multiple shares and users, you can use a configuration file instead of command-line options. Both YAML and TOML formats are supported with automatic format detection.
+
+### YAML Format
+
+Create a file (e.g., `shares.conf` or `shares.yml`) with the following format:
+
+```yaml
+shares:
+  ShareName:
+    path: /path/to/share
+    username: myuser
+    password: mypassword
+    browsable: yes
+    readonly: no
+    guest: no
+```
+
+The configuration uses standard YAML syntax with a `shares` dictionary containing share definitions. See `shares.conf.example` for a complete example.
+
+### TOML Format
+
+Alternatively, you can use TOML format (e.g., `shares.toml`):
+
+```toml
+[shares.ShareName]
+path = "/path/to/share"
+username = "myuser"
+password = "mypassword"
+browsable = true
+readonly = false
+guest = false
+```
+
+TOML uses standard boolean values (`true`/`false`) and requires quotes around string values. See `shares.conf.toml.example` for a complete example.
+
+### Format Detection
+
+The parser automatically detects the format based on:
+- File extension (`.toml` for TOML, anything else defaults to YAML)
+- Content analysis (presence of `[shares.` sections indicates TOML)
+
+**Which format should I use?**
+- **YAML**: More concise, better for human editing, widely used
+- **TOML**: More explicit, better for configuration management tools, strict typing
+
+Both formats support the same features and produce identical results.
+
+### Required properties:
+- `path` - The filesystem path to share
+- `username` - Username for accessing the share
+- `password` - Password for the user
+
+### Optional properties (defaults shown):
+- `browsable: yes` - Whether share appears in network listings
+- `readonly: no` - Whether share is read-only
+- `guest: no` - Whether guest access is allowed
+
+### Using the configuration file:
+
+Mount your config file into the container and set the `CONFIG_FILE` environment variable:
+
+```bash
+sudo docker run -it -p 139:139 -p 445:445 \
+    -v /path/to/directory:/mount \
+    -v /path/to/shares.conf:/shares.conf:ro \
+    -e CONFIG_FILE=/shares.conf \
+    -d dperson/samba -p
+```
+
+Or with docker-compose:
+
+```yaml
+version: '3.9'
+services:
+  samba:
+    image: dperson/samba
+    environment:
+      - CONFIG_FILE=/shares.conf
+    volumes:
+      - /path/to/directory:/mount
+      - /path/to/shares.conf:/shares.conf:ro
+    ports:
+      - "139:139"
+      - "445:445"
+```
+
+**Note**: The configuration file approach can be combined with command-line options. Config file entries are processed first, then command-line options.
+
+For a complete docker-compose example with security hardening, see `docker-compose.config-example.yml`.
 
 ## Examples
 

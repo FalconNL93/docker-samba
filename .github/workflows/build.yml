@@ -42,6 +42,7 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v6
         with:
+          context: .
           push: true
           tags: |
             ${{env.REGISTRY_GHCR}}/${{steps.lower-repo.outputs.owner}}/${{env.IMAGE_NAME}}:${{env.IMAGE_TAG}}

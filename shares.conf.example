@@ -1,0 +1,21 @@
+# Samba Share Configuration
+# YAML format with shares dictionary
+
+shares:
+  Storage:
+    path: /data/storage
+    username: myuser
+    password: mypassword
+    readonly: no
+
+  Shared:
+    path: /mnt/hdd2/Shared
+    username: shared
+    password: shared
+    readonly: no
+    browsable: yes
+
+# Optional settings (defaults shown):
+#   browsable: yes
+#   readonly: no
+#   guest: no

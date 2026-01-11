@@ -23,6 +23,53 @@ set -o pipefail                             # Catch errors in pipes
 # Logging helper
 log() { echo "[$(date +'%Y-%m-%d %H:%M:%S')] $*" >&2; }
 
+# Security: Sanitize input to prevent injection attacks
+sanitize_path() {
+    local path="$1"
+    # Remove any path traversal attempts
+    path="${path//..\/}"
+    path="${path//..\\}"
+    # Remove null bytes
+    path="${path//$'\0'/}"
+    # Remove leading/trailing whitespace
+    path="$(echo "$path" | xargs)"
+    echo "$path"
+}
+
+# Security: Validate share name (alphanumeric, spaces, hyphens, underscores only)
+validate_share_name() {
+    local name="$1"
+    if [[ ! "$name" =~ ^[a-zA-Z0-9\ _-]+$ ]]; then
+        log "ERROR: Invalid share name '$name'. Only alphanumeric, spaces, hyphens, and underscores allowed."
+        return 1
+    fi
+    return 0
+}
+
+# Security: Validate username (alphanumeric, hyphens, underscores only)
+validate_username() {
+    local name="$1"
+    if [[ ! "$name" =~ ^[a-zA-Z0-9_-]+$ ]]; then
+        log "ERROR: Invalid username '$name'. Only alphanumeric, hyphens, and underscores allowed."
+        return 1
+    fi
+    if [[ ${#name} -lt 3 || ${#name} -gt 32 ]]; then
+        log "ERROR: Username must be between 3 and 32 characters."
+        return 1
+    fi
+    return 0
+}
+
+# Security: Validate password strength
+validate_password() {
+    local pass="$1"
+    if [[ ${#pass} -lt 8 ]]; then
+        log "WARNING: Password is less than 8 characters. Consider using a stronger password."
+        return 0  # Warning only, not enforced
+    fi
+    return 0
+}
+
 ### charmap: setup character mapping for file/directory names
 # Arguments:
 #   chars) from:to character mappings separated by ','
@@ -158,12 +205,24 @@ recycle() {
 # Return: result
 share() { 
     local share="$1" path="$2" browsable="${3:-yes}" ro="${4:-yes}" \
-                guest="${5:-yes}" users="${6:-""}" admins="${7:-""}" \
+                guest="${5:-no}" users="${6:-""}" admins="${7:-""}" \
                 writelist="${8:-""}" comment="${9:-""}" file=/etc/samba/smb.conf
     
     [[ -z "${share:-}" ]] && { log "ERROR: share requires share name"; return 1; }
     [[ -z "${path:-}" ]] && { log "ERROR: share requires path"; return 1; }
     [[ ! -f "$file" ]] && { log "ERROR: Config file $file not found"; return 1; }
+    
+    # Security: Validate share name
+    validate_share_name "$share" || return 1
+    
+    # Security: Sanitize and validate path
+    path="$(sanitize_path "$path")"
+    [[ "$path" == /* ]] || { log "ERROR: Path must be absolute"; return 1; }
+    
+    # Security: Warn about guest access
+    if [[ "$guest" == "yes" ]]; then
+        log "WARNING: Guest access enabled for share '$share'. This reduces security."
+    fi
     
     log "Configuring share: $share at $path"
     sed -i "/\\[$share\\]/,/^\$/d" "$file"
@@ -196,7 +255,7 @@ share() {
     [[ -d "$path" ]] || mkdir -p "$path"
 }
 
-### smb: disable SMB2 minimum
+### smb: disable SMB2 minimum (NOT RECOMMENDED - Security Risk!)
 # Arguments:
 #   none)
 # Return: result
@@ -204,6 +263,8 @@ smb() {
     local file=/etc/samba/smb.conf
     [[ ! -f "$file" ]] && { log "ERROR: Config file $file not found"; return 1; }
     
+    log "WARNING: Disabling SMB2/3 minimum is a SECURITY RISK! SMB1 has known vulnerabilities."
+    log "WARNING: Only use this for legacy systems that absolutely require it."
     sed -i 's/\([^#]*min protocol *=\).*/\1 LANMAN1/' "$file"
 }
 
@@ -221,6 +282,12 @@ user() {
     
     [[ -z "${name:-}" ]] && { log "ERROR: user requires username"; return 1; }
     [[ -z "${passwd:-}" ]] && { log "ERROR: user requires password"; return 1; }
+    
+    # Security: Validate username
+    validate_username "$name" || return 1
+    
+    # Security: Validate password
+    validate_password "$passwd"
     
     log "Adding user: $name"
     [[ "$group" ]] && { grep -q "^$group:" /etc/group ||
@@ -305,9 +372,32 @@ Options (fields in '[]' are optional, '<>' are required):
                 <include file path> in the container, e.g. a bind mount
 
 The 'command' (if provided and valid) will be run instead of samba
+
+Environment variables:
+    CONFIG_FILE - Path to configuration file (see shares.conf.example)
 " >&2
     exit $RC
 }
+
+# Check for configuration file first
+if [[ -n "${CONFIG_FILE:-}" ]]; then
+    if [[ -f "$CONFIG_FILE" ]]; then
+        log "Loading configuration from: $CONFIG_FILE"
+        # Auto-detect format based on file extension or content
+        if [[ "$CONFIG_FILE" =~ \.toml$ ]] || grep -q '^\[shares\.' "$CONFIG_FILE" 2>/dev/null; then
+            log "Detected TOML format"
+            mapfile -t config_args < <(/usr/bin/parse-toml-config.sh "$CONFIG_FILE")
+        else
+            log "Detected YAML format"
+            mapfile -t config_args < <(/usr/bin/parse-config.sh "$CONFIG_FILE")
+        fi
+        # Prepend config args to existing arguments
+        set -- "${config_args[@]}" "$@"
+    else
+        log "ERROR: CONFIG_FILE specified but not found: $CONFIG_FILE"
+        exit 1
+    fi
+fi
 
 [[ "${USERID:-""}" =~ ^[0-9]+$ ]] && usermod -u "$USERID" -o smbuser
 [[ "${GROUPID:-""}" =~ ^[0-9]+$ ]] && groupmod -g "$GROUPID" -o smb

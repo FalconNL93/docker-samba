@@ -1,0 +1,20 @@
+# Samba Share Configuration
+# TOML format
+
+[shares.Storage]
+path = "/data/storage"
+username = "myuser"
+password = "mypassword"
+readonly = false
+
+[shares.Shared]
+path = "/mnt/hdd2/Shared"
+username = "shared"
+password = "shared"
+readonly = false
+browsable = true
+
+# Optional settings (defaults shown):
+#   browsable = true
+#   readonly = false
+#   guest = false
