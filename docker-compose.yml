@@ -1,18 +1,18 @@
-version: '3.4'
-
 services:
   samba:
-    image: dperson/samba
+    image: ghcr.io/falconnl93/samba:latest
     build: .
+    container_name: samba
+    hostname: samba-server
     environment:
       TZ: 'Europe/Amsterdam'
-    networks:
-      - default
+      PUID: 1000
+      PGID: 1000
     ports:
-      - "137:137/udp"
-      - "138:138/udp"
-      - "139:139/tcp"
-      - "445:445/tcp"
+      - "10137:137/udp"
+      - "10138:138/udp"
+      - "10139:139/tcp"
+      - "10445:445/tcp"
     read_only: true
     tmpfs:
       - /tmp
@@ -20,9 +20,32 @@ services:
     stdin_open: true
     tty: true
     volumes:
-      - /mnt:/mnt:z
-      - /mnt2:/mnt2:z
+      - ./test-data/mnt:/mnt:z
+      - ./test-data/mnt2:/mnt2:z
     command: '-s "Mount;/mnt" -s "Bobs Volume;/mnt2;yes;no;no;bob" -u "bob;bobspasswd" -p'
-
-networks:
-  default:
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 256M
+    # Security options
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - FOWNER
+      - SETGID
+      - SETUID
+    healthcheck:
+      test: ["CMD", "smbclient", "-L", "\\\\localhost", "-U", "%", "-m", "SMB3"]
+      interval: 60s
+      timeout: 15s
+      retries: 3
+      start_period: 30s

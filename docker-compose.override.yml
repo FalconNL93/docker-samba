@@ -1,0 +1,24 @@
+# Override file for local testing
+# This file is automatically merged with docker-compose.yml when running docker-compose
+# Use different ports to avoid conflicts with Windows services
+
+services:
+  samba:
+    ports:
+      - "10137:137/udp"
+      - "10138:138/udp"
+      - "10139:139/tcp"
+      - "10445:445/tcp"
+    # Use local build for testing
+    image: samba:local-test
+    # Remove restart policy for local testing
+    restart: "no"
+    # Reduce resource limits for local development
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 128M

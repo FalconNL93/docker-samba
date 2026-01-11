@@ -1,4 +1,41 @@
+# Git files
 .git
+.gitignore
+.gitattributes
+
+# Documentation
 LICENSE
-README.md
+*.md
 logo.jpg
+
+# IDE and editor files
+.vscode
+.idea
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Docker files (except what we need)
+docker-compose.override.yml
+docker-compose.*.yml
+!docker-compose.yml
+
+# CI/CD
+.github
+.gitlab-ci.yml
+.travis.yml
+
+# Logs and temporary files
+*.log
+*.tmp
+*.bak
+*.old
+
+# Test files
+test
+tests
+*.test.sh
+
+# Test data directory
+test-data/
